@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Starlight Academy - Idol Producer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --vo-color: #f472b6; /* Pink */
+            --da-color: #60a5fa; /* Blue */
+            --vi-color: #fbbf24; /* Yellow */
+            --hp-color: #34d399; /* Green */
+        }
+
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #0f172a;
+            color: white;
+            overflow: hidden;
+            touch-action: manipulation;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 414px; /* スマホサイズ */
+            height: 100vh;
+            max-height: 896px;
+            position: relative;
+            background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 50%, #831843 100%);
+            background-size: 200% 200%;
+            animation: gradientBG 15s ease infinite;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* グラスモーフィズム */
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+            z-index: 20;
+        }
+
+        /* キャラクターエリア */
+        .idol-container {
+            position: relative;
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 20px;
+        }
+
+        .idol-silhouette {
+            width: 250px;
+            height: 350px;
+            background: radial-gradient(circle at top, rgba(255,255,255,0.8), rgba(255,255,255,0.2));
+            -webkit-mask-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg"><path d="M100 20 C60 20 40 60 40 100 C40 120 50 140 60 160 C50 180 30 220 30 280 L170 280 C170 220 150 180 140 160 C150 140 160 120 160 100 C160 60 140 20 100 20 Z" fill="black"/></svg>');
+            mask-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg"><path d="M100 20 C60 20 40 60 40 100 C40 120 50 140 60 160 C50 180 30 220 30 280 L170 280 C170 220 150 180 140 160 C150 140 160 120 160 100 C160 60 140 20 100 20 Z" fill="black"/></svg>');
+            -webkit-mask-size: contain;
+            mask-size: contain;
+            -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+            -webkit-mask-position: center bottom;
+            mask-position: center bottom;
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 0 15px rgba(255,255,255,0.5));
+        }
+
+        .idol-silhouette.happy { transform: translateY(-10px) scale(1.05); filter: drop-shadow(0 0 25px rgba(244, 114, 182, 0.8)); }
+        .idol-silhouette.tired { filter: drop-shadow(0 0 10px rgba(100, 100, 100, 0.8)); opacity: 0.7; }
+
+        /* 吹き出し */
+        .speech-bubble {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            color: #333;
+            padding: 12px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.3s;
+            max-width: 80%;
+            text-align: center;
+        }
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 10px 10px 0;
+            border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
+        .speech-bubble.show { opacity: 1; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        @keyframes popIn {
+            0% { transform: translateX(-50%) scale(0.5); }
+            100% { transform: translateX(-50%) scale(1); }
+        }
+
+        /* プログレスバー */
+        .progress-bg { background: rgba(0, 0, 0, 0.4); border-radius: 999px; height: 12px; overflow: hidden; width: 100%; border: 1px solid rgba(255,255,255,0.1); }
+        .progress-fill { height: 100%; border-radius: 999px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        .bg-vo { background: linear-gradient(90deg, #ec4899, #f472b6); box-shadow: 0 0 10px #ec4899; }
+        .bg-da { background: linear-gradient(90deg, #3b82f6, #60a5fa); box-shadow: 0 0 10px #3b82f6; }
+        .bg-vi { background: linear-gradient(90deg, #f59e0b, #fbbf24); box-shadow: 0 0 10px #f59e0b; }
+        .bg-hp { background: linear-gradient(90deg, #10b981, #34d399); box-shadow: 0 0 10px #10b981; }
+
+        /* アクションボタン */
+        .action-btn {
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+            font-weight: bold;
+            transition: transform 0.1s, filter 0.2s;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        .action-btn:active { transform: scale(0.95); }
+        .action-btn.disabled { filter: grayscale(100%); opacity: 0.5; pointer-events: none; }
+        
+        .btn-vo { background: linear-gradient(135deg, #be185d, #ec4899); }
+        .btn-da { background: linear-gradient(135deg, #1d4ed8, #3b82f6); }
+        .btn-vi { background: linear-gradient(135deg, #b45309, #f59e0b); }
+        .btn-rest { background: linear-gradient(135deg, #047857, #10b981); }
+
+        /* 浮上するテキストアニメーション */
+        .floating-text {
+            position: absolute;
+            font-weight: 900;
+            font-size: 24px;
+            pointer-events: none;
+            animation: floatUpAndFade 1s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 10px rgba(255,255,255,0.8);
+            z-index: 50;
+        }
+
+        @keyframes floatUpAndFade {
+            0% { opacity: 1; transform: translateY(0) scale(0.5); }
+            50% { transform: translateY(-40px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-80px) scale(1); }
+        }
+
+        /* キラキラエフェクト */
+        .sparkle {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: sparkleAnim 0.8s forwards;
+        }
+        @keyframes sparkleAnim {
+            0% { transform: scale(0); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.8; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        /* ライブカードUI */
+        .live-card {
+            flex: 1;
+            height: 150px;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 5px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .live-card:active { transform: scale(0.95); }
+        .live-card.disabled { filter: grayscale(100%); opacity: 0.4; pointer-events: none; }
+        
+        .card-type-vo { border-top: 4px solid var(--vo-color); background: linear-gradient(180deg, rgba(236,72,153,0.3) 0%, rgba(0,0,0,0.6) 100%); }
+        .card-type-da { border-top: 4px solid var(--da-color); background: linear-gradient(180deg, rgba(59,130,246,0.3) 0%, rgba(0,0,0,0.6) 100%); }
+        .card-type-vi { border-top: 4px solid var(--vi-color); background: linear-gradient(180deg, rgba(245,158,11,0.3) 0%, rgba(0,0,0,0.6) 100%); }
+        .card-type-heal { border-top: 4px solid var(--hp-color); background: linear-gradient(180deg, rgba(16,185,129,0.3) 0%, rgba(0,0,0,0.6) 100%); }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+
+    <!-- Title Screen -->
+    <div id="title-screen" class="screen active justify-center items-center p-6 text-center">
+        <div class="glass p-8 rounded-3xl w-full flex flex-column items-center">
+            <h1 class="text-4xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-300 drop-shadow-lg" style="line-height: 1.2;">
+                Starlight<br>Academy
+            </h1>
+            <p class="text-sm text-purple-200 mb-8 tracking-widest uppercase">Idol Producer</p>
+            
+            <div class="w-24 h-24 rounded-full bg-white/20 mb-8 flex items-center justify-center border-4 border-pink-300/50 shadow-[0_0_20px_rgba(244,114,182,0.5)]">
+                <span class="text-4xl">✨</span>
+            </div>
+
+            <p class="text-sm text-gray-200 mb-6">10週間のレッスンで<br>最高のアイドルを育成しよう！</p>
+            
+            <button onclick="startGame()" class="w-full py-4 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 font-bold text-lg shadow-[0_0_15px_rgba(236,72,153,0.6)] hover:scale-105 transition-transform active:scale-95 text-white">
+                プロデュース開始
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen flex-col">
+        <!-- Header: Turn & HP -->
+        <div class="p-4 pt-8 glass rounded-b-2xl z-20">
+            <div class="flex justify-between items-end mb-2">
+                <div>
+                    <span class="text-xs text-gray-300 font-bold tracking-wider">SCHEDULE</span>
+                    <div class="text-xl font-black">第 <span id="ui-turn" class="text-pink-300">1</span> 週 <span class="text-sm text-gray-300 font-normal">/ 10</span></div>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-gray-300 font-bold tracking-wider">STAMINA</span>
+                    <div class="text-lg font-black text-green-300"><span id="ui-hp-val">100</span> / 100</div>
+                </div>
+            </div>
+            <div class="progress-bg h-3">
+                <div id="ui-hp-bar" class="progress-fill bg-hp" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- Character Area -->
+        <div class="idol-container" id="idol-area">
+            <div id="speech-bubble" class="speech-bubble text-pink-600">プロデューサー、よろしくお願いします！</div>
+            <div id="idol-silhouette" class="idol-silhouette"></div>
+        </div>
+
+        <!-- Stats Area -->
+        <div class="px-4 pb-2 z-20">
+            <div class="glass p-3 rounded-2xl space-y-3">
+                <!-- Vocal -->
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-xl bg-pink-500/20 flex justify-center items-center text-pink-400 font-black mr-3 shadow-inner border border-pink-500/30">Vo</div>
+                    <div class="flex-grow">
+                        <div class="flex justify-between text-xs mb-1 font-bold">
+                            <span class="text-pink-300">Vocal</span>
+                            <span id="ui-vo-val">0</span>
+                        </div>
+                        <div class="progress-bg">
+                            <div id="ui-vo-bar" class="progress-fill bg-vo" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Dance -->
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex justify-center items-center text-blue-400 font-black mr-3 shadow-inner border border-blue-500/30">Da</div>
+                    <div class="flex-grow">
+                        <div class="flex justify-between text-xs mb-1 font-bold">
+                            <span class="text-blue-300">Dance</span>
+                            <span id="ui-da-val">0</span>
+                        </div>
+                        <div class="progress-bg">
+                            <div id="ui-da-bar" class="progress-fill bg-da" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Visual -->
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-xl bg-yellow-500/20 flex justify-center items-center text-yellow-400 font-black mr-3 shadow-inner border border-yellow-500/30">Vi</div>
+                    <div class="flex-grow">
+                        <div class="flex justify-between text-xs mb-1 font-bold">
+                            <span class="text-yellow-300">Visual</span>
+                            <span id="ui-vi-val">0</span>
+                        </div>
+                        <div class="progress-bg">
+                            <div id="ui-vi-bar" class="progress-fill bg-vi" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Menu -->
+        <div class="p-4 z-20 mb-4">
+            <div class="grid grid-cols-2 gap-3">
+                <button id="btn-vo" onclick="doAction('vo')" class="action-btn btn-vo p-3 flex flex-col items-center justify-center">
+                    <span class="text-lg mb-1">🎤</span>
+                    <span class="text-sm">ボーカル</span>
+                    <span class="text-[10px] text-white/70 bg-black/20 px-2 rounded-full mt-1">Stamina -20</span>
+                </button>
+                <button id="btn-da" onclick="doAction('da')" class="action-btn btn-da p-3 flex flex-col items-center justify-center">
+                    <span class="text-lg mb-1">💃</span>
+                    <span class="text-sm">ダンス</span>
+                    <span class="text-[10px] text-white/70 bg-black/20 px-2 rounded-full mt-1">Stamina -20</span>
+                </button>
+                <button id="btn-vi" onclick="doAction('vi')" class="action-btn btn-vi p-3 flex flex-col items-center justify-center">
+                    <span class="text-lg mb-1">✨</span>
+                    <span class="text-sm">ビジュアル</span>
+                    <span class="text-[10px] text-white/70 bg-black/20 px-2 rounded-full mt-1">Stamina -20</span>
+                </button>
+                <button onclick="doAction('rest')" class="action-btn btn-rest p-3 flex flex-col items-center justify-center">
+                    <span class="text-lg mb-1">☕</span>
+                    <span class="text-sm">お休み</span>
+                    <span class="text-[10px] text-white/70 bg-black/20 px-2 rounded-full mt-1">Stamina +50</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Screen -->
+    <div id="live-screen" class="screen flex-col">
+        <!-- Live Header -->
+        <div class="p-4 pt-8 glass rounded-b-2xl z-20 flex justify-between items-center shadow-lg shadow-pink-500/20">
+            <div>
+                <span class="text-xs text-gray-300 font-bold tracking-wider">LIVE STAGE - TURN <span id="live-turn-ui" class="text-white">1</span> / 5</span>
+                <div class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-pink-400 drop-shadow-md" id="live-score-ui">0</div>
+            </div>
+            <div class="text-right">
+                <span class="text-xs text-gray-300 font-bold tracking-wider">HP</span>
+                <div class="text-2xl font-black text-green-300 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]"><span id="live-hp-ui">100</span></div>
+            </div>
+        </div>
+
+        <!-- Stage Area -->
+        <div class="flex-grow flex flex-col justify-center items-center relative overflow-hidden" id="live-stage-area">
+            <!-- Idol -->
+            <div class="idol-silhouette scale-90 happy z-10" id="live-idol" style="filter: drop-shadow(0 0 30px rgba(255,255,255,0.3));"></div>
+            
+            <!-- Current Stats Display -->
+            <div class="absolute bottom-4 flex gap-4 bg-black/60 backdrop-blur-sm px-6 py-2 rounded-full border border-white/20 text-sm font-bold z-20 shadow-lg">
+                <span class="text-pink-300 flex items-center gap-1">Vo <span id="live-vo-stat" class="text-white">0</span></span>
+                <span class="text-blue-300 flex items-center gap-1">Da <span id="live-da-stat" class="text-white">0</span></span>
+                <span class="text-yellow-300 flex items-center gap-1">Vi <span id="live-vi-stat" class="text-white">0</span></span>
+            </div>
+        </div>
+
+        <!-- Hand Cards Area -->
+        <div class="p-4 z-20 mb-4">
+            <p class="text-xs text-center text-gray-300 mb-2 font-bold animate-pulse">カードを選んでアピール！</p>
+            <div class="flex justify-between gap-3" id="hand-cards-container">
+                <!-- Cards injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Screen -->
+    <div id="result-screen" class="screen justify-center items-center p-6 text-center">
+        <div class="glass p-8 rounded-3xl w-full">
+            <h2 class="text-3xl font-black mb-1 text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-yellow-300">LIVE EVALUATION</h2>
+            <p class="text-sm text-gray-300 mb-6">最終オーディション結果</p>
+            
+            <div class="relative w-32 h-32 mx-auto mb-6 flex items-center justify-center rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 shadow-[0_0_30px_rgba(236,72,153,0.5)] border-4 border-white/20">
+                <div id="final-rank" class="text-6xl font-black text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">S</div>
+                <div class="absolute -bottom-3 bg-black/50 backdrop-blur-md px-4 py-1 rounded-full border border-white/20 text-xs font-bold">RANK</div>
+            </div>
+
+            <div class="space-y-2 mb-8 text-left bg-black/20 p-4 rounded-xl">
+                <div class="flex justify-between text-sm text-gray-300">育成ステータス合計 <span id="res-stats-total" class="font-bold">0</span></div>
+                <div class="h-px bg-white/20 my-2"></div>
+                <div class="text-center text-xs text-pink-300 font-bold mb-1">LIVE FINAL SCORE</div>
+                <div class="text-center text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-pink-400 drop-shadow-md" id="res-score">0</div>
+            </div>
+
+            <button onclick="location.reload()" class="w-full py-4 rounded-full bg-white/20 hover:bg-white/30 border border-white/40 font-bold text-lg transition-colors text-white backdrop-blur-sm">
+                タイトルへ戻る
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- State ---
+    const MAX_TURN = 10;
+    const MAX_LIVE_TURN = 5;
+    const MAX_HP = 100;
+    const LESSON_COST = 20;
+    
+    let state = {
+        turn: 1,
+        hp: MAX_HP,
+        vo: 0,
+        da: 0,
+        vi: 0,
+        // Live state
+        liveTurn: 1,
+        liveHp: 0,
+        score: 0
+    };
+
+    // Cards DB
+    const CARD_DB = [
+        { id: 'vo_s', name: 'Voアピール', type: 'vo', cost: 10, power: 1.5, icon: '🎤', desc: 'Vo x1.5' },
+        { id: 'vo_l', name: '全力Voアピール', type: 'vo', cost: 30, power: 3.0, icon: '🔥', desc: 'Vo x3.0' },
+        { id: 'da_s', name: 'Daアピール', type: 'da', cost: 10, power: 1.5, icon: '💃', desc: 'Da x1.5' },
+        { id: 'da_l', name: '全力Daアピール', type: 'da', cost: 30, power: 3.0, icon: '🔥', desc: 'Da x3.0' },
+        { id: 'vi_s', name: 'Viアピール', type: 'vi', cost: 10, power: 1.5, icon: '✨', desc: 'Vi x1.5' },
+        { id: 'vi_l', name: '全力Viアピール', type: 'vi', cost: 30, power: 3.0, icon: '🔥', desc: 'Vi x3.0' },
+        { id: 'heal', name: '深呼吸', type: 'heal', cost: -40, power: 0, icon: '☕', desc: 'HP+40' } // negative cost heals
+    ];
+
+    // Dialogues
+    const dialogues = {
+        start: ["プロデューサー、よろしくお願いします！", "トップアイドル目指して頑張ります！"],
+        vo: ["声の調子、いい感じです！", "もっと響かせます！"],
+        da: ["ステップ、完璧に覚えました！", "汗かくのって気持ちいいですね！"],
+        vi: ["笑顔の練習、バッチリです！", "どうですか？可愛く撮れてますか？"],
+        rest: ["ふぅ、少し休めました！", "甘いもの食べて元気出ました！"],
+        tired: ["少し...疲れました...", "ふらふらします...プロデューサー..."],
+        failure: ["ごめんなさい...失敗しちゃいました...", "うぅ...足がもつれて..."]
+    };
+
+    // --- Core Functions ---
+    function startGame() {
+        // Reset State
+        state = { turn: 1, hp: MAX_HP, vo: 0, da: 0, vi: 0, liveTurn: 1, liveHp: 0, score: 0 };
+        document.querySelectorAll('.action-btn').forEach(btn => btn.classList.remove('disabled'));
+        
+        document.getElementById('title-screen').classList.remove('active');
+        document.getElementById('game-screen').classList.add('active');
+        updateUI();
+        showDialogue(getRandom(dialogues.start));
+    }
+
+    function doAction(type) {
+        let hpChange = 0;
+        let statsChange = { vo: 0, da: 0, vi: 0 };
+        let currentDialogue = "";
+        let success = true;
+
+        if (type !== 'rest') {
+            // Lesson
+            if (state.hp < LESSON_COST) {
+                // Failure due to low stamina (High chance to fail)
+                if (Math.random() < 0.7) {
+                    success = false;
+                }
+            }
+
+            hpChange = -LESSON_COST;
+
+            if (success) {
+                // Base gain 10-20
+                const gain = Math.floor(Math.random() * 11) + 15;
+                statsChange[type] = gain;
+                
+                // Small chance for great success (Bonus sub-stats)
+                if (Math.random() < 0.3) {
+                    const subTypes = ['vo', 'da', 'vi'].filter(t => t !== type);
+                    statsChange[subTypes[0]] += 5;
+                    createFloatingText("Great!", 'white', -50);
+                }
+                currentDialogue = getRandom(dialogues[type]);
+                animateCharacter('happy');
+            } else {
+                // Failed lesson
+                statsChange[type] = 2; // Minimal gain
+                hpChange = -10; // Lose less hp on fail but waste turn
+                currentDialogue = getRandom(dialogues.failure);
+                createFloatingText("Miss...", 'gray');
+                animateCharacter('tired');
+            }
+
+        } else {
+            // Rest
+            hpChange = 50;
+            currentDialogue = getRandom(dialogues.rest);
+            createFloatingText("Recover!", '#34d399');
+            animateCharacter('happy');
+        }
+
+        // Apply changes
+        state.hp = Math.min(MAX_HP, Math.max(0, state.hp + hpChange));
+        state.vo += statsChange.vo;
+        state.da += statsChange.da;
+        state.vi += statsChange.vi;
+
+        // Visual feedback for stats
+        if(statsChange.vo > 0) createFloatingText(`+${statsChange.vo} Vo`, 'var(--vo-color)', -20, -20);
+        if(statsChange.da > 0) createFloatingText(`+${statsChange.da} Da`, 'var(--da-color)', 0, -30);
+        if(statsChange.vi > 0) createFloatingText(`+${statsChange.vi} Vi`, 'var(--vi-color)', 20, -20);
+
+        // Advance Turn
+        state.turn++;
+
+        // Update UI
+        updateUI();
+
+        // Check Tired status
+        if (state.hp <= 30 && type !== 'rest' && success) {
+            currentDialogue = getRandom(dialogues.tired);
+            document.getElementById('idol-silhouette').classList.add('tired');
+        } else {
+            document.getElementById('idol-silhouette').classList.remove('tired');
+        }
+
+        showDialogue(currentDialogue);
+        createSparkles();
+
+        // Check End Game (Transition to Live)
+        if (state.turn > MAX_TURN) {
+            document.querySelectorAll('.action-btn').forEach(btn => btn.classList.add('disabled'));
+            setTimeout(startLive, 1500);
+        }
+    }
+
+    function updateUI() {
+        // Turn
+        document.getElementById('ui-turn').innerText = Math.min(state.turn, MAX_TURN);
+        
+        // HP
+        document.getElementById('ui-hp-val').innerText = state.hp;
+        document.getElementById('ui-hp-bar').style.width = `${(state.hp / MAX_HP) * 100}%`;
+        
+        // Stats (Max visual bar at 200 for scale)
+        const scaleMax = 200;
+        document.getElementById('ui-vo-val').innerText = state.vo;
+        document.getElementById('ui-vo-bar').style.width = `${Math.min(100, (state.vo / scaleMax) * 100)}%`;
+        
+        document.getElementById('ui-da-val').innerText = state.da;
+        document.getElementById('ui-da-bar').style.width = `${Math.min(100, (state.da / scaleMax) * 100)}%`;
+        
+        document.getElementById('ui-vi-val').innerText = state.vi;
+        document.getElementById('ui-vi-bar').style.width = `${Math.min(100, (state.vi / scaleMax) * 100)}%`;
+
+        // Button states
+        if (state.hp < LESSON_COST) {
+            document.getElementById('btn-vo').classList.add('disabled');
+            document.getElementById('btn-da').classList.add('disabled');
+            document.getElementById('btn-vi').classList.add('disabled');
+        } else {
+            document.getElementById('btn-vo').classList.remove('disabled');
+            document.getElementById('btn-da').classList.remove('disabled');
+            document.getElementById('btn-vi').classList.remove('disabled');
+        }
+    }
+
+    // --- Live Phase Functions ---
+    function startLive() {
+        document.getElementById('game-screen').classList.remove('active');
+        document.getElementById('live-screen').classList.add('active');
+        
+        // 育成終了時のHPにボーナスを加えてライブ用HPとする
+        state.liveHp = Math.min(200, state.hp + 50); 
+        
+        // UIセット
+        document.getElementById('live-vo-stat').innerText = state.vo;
+        document.getElementById('live-da-stat').innerText = state.da;
+        document.getElementById('live-vi-stat').innerText = state.vi;
+        
+        updateLiveUI();
+        drawCards();
+        
+        const stage = document.getElementById('live-stage-area');
+        const text = document.createElement('div');
+        text.className = 'absolute text-4xl font-black text-white drop-shadow-[0_0_20px_#f472b6] animate-[ping_1s_ease-out_forwards] pointer-events-none z-50';
+        text.innerText = "LIVE START!!";
+        stage.appendChild(text);
+        setTimeout(() => text.remove(), 1000);
+    }
+
+    function drawCards() {
+        const container = document.getElementById('hand-cards-container');
+        container.innerHTML = ''; // clear
+
+        // 3枚ランダムにドロー
+        for(let i=0; i<3; i++) {
+            const cardData = CARD_DB[Math.floor(Math.random() * CARD_DB.length)];
+            
+            const btn = document.createElement('button');
+            btn.className = `live-card card-type-${cardData.type}`;
+            
+            // コスト不足の場合はグレーアウト
+            if(cardData.cost > 0 && state.liveHp < cardData.cost) {
+                btn.classList.add('disabled');
+            }
+
+            btn.onclick = () => useCard(cardData);
+            
+            btn.innerHTML = `
+                <div class="text-2xl mb-1">${cardData.icon}</div>
+                <div class="text-xs font-bold mb-auto leading-tight">${cardData.name}</div>
+                <div class="w-full bg-black/40 rounded py-1 text-center mt-2">
+                    <div class="text-[10px] text-gray-300">${cardData.desc}</div>
+                    <div class="text-xs font-black ${cardData.type === 'heal' ? 'text-green-400' : 'text-pink-300'}">
+                        ${cardData.type === 'heal' ? '+' : '-'}${Math.abs(cardData.cost)} HP
+                    </div>
+                </div>
+            `;
+            container.appendChild(btn);
+        }
+    }
+
+    function useCard(card) {
+        // コスト消費 / 回復
+        if (card.cost > 0) {
+            state.liveHp -= card.cost;
+        } else {
+            state.liveHp = Math.min(200, state.liveHp - card.cost); // cost is negative for heal
+        }
+
+        // スコア計算
+        let gainScore = 0;
+        if (card.type !== 'heal') {
+            const baseStat = state[card.type]; // state.vo, state.da, state.vi
+            // 基礎ステータス * カード倍率 * 乱数(0.9~1.1)
+            gainScore = Math.floor(baseStat * card.power * (0.9 + Math.random() * 0.2));
+            state.score += gainScore;
+            
+            // エフェクト
+            createFloatingText(`+${gainScore} SCORE!`, 'white', 0, -50, 'live-stage-area');
+            document.getElementById('live-idol').classList.add('happy');
+            setTimeout(() => document.getElementById('live-idol').classList.remove('happy'), 300);
+        } else {
+            createFloatingText(`HP RECOVER!`, '#34d399', 0, -50, 'live-stage-area');
+        }
+
+        state.liveTurn++;
+        
+        updateLiveUI();
+
+        if (state.liveTurn > MAX_LIVE_TURN) {
+            // 手札を操作不可に
+            document.getElementById('hand-cards-container').style.pointerEvents = 'none';
+            setTimeout(endGame, 1500);
+        } else {
+            drawCards();
+        }
+    }
+
+    function updateLiveUI() {
+        document.getElementById('live-turn-ui').innerText = Math.min(state.liveTurn, MAX_LIVE_TURN);
+        
+        // スコアのアニメーション的更新（簡易）
+        const scoreEl = document.getElementById('live-score-ui');
+        scoreEl.innerText = state.score;
+        scoreEl.classList.remove('scale-110');
+        void scoreEl.offsetWidth; 
+        scoreEl.classList.add('scale-110', 'transition-transform');
+        setTimeout(() => scoreEl.classList.remove('scale-110'), 200);
+
+        document.getElementById('live-hp-ui').innerText = state.liveHp;
+    }
+
+    function endGame() {
+        document.getElementById('live-screen').classList.remove('active');
+        document.getElementById('result-screen').classList.add('active');
+
+        const totalStats = state.vo + state.da + state.vi;
+        document.getElementById('res-stats-total').innerText = totalStats;
+        document.getElementById('res-score').innerText = state.score;
+
+        // 最終ランクの判定
+        let rank = 'C';
+        if (state.score > 2000) rank = 'S';
+        else if (state.score > 1200) rank = 'A';
+        else if (state.score > 600) rank = 'B';
+        
+        const rankEl = document.getElementById('final-rank');
+        rankEl.innerText = rank;
+        
+        let color = '';
+        if(rank === 'S') color = 'text-yellow-300';
+        else if(rank === 'A') color = 'text-pink-300';
+        else if(rank === 'B') color = 'text-blue-300';
+        else color = 'text-gray-300';
+        
+        rankEl.className = `text-6xl font-black ${color} drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]`;
+    }
+
+    // --- Utility Functions ---
+    function showDialogue(text) {
+        const bubble = document.getElementById('speech-bubble');
+        if(!bubble) return;
+        bubble.innerText = text;
+        bubble.classList.remove('show');
+        void bubble.offsetWidth; // trigger reflow
+        bubble.classList.add('show');
+        
+        setTimeout(() => {
+            bubble.classList.remove('show');
+        }, 3000);
+    }
+
+    function animateCharacter(animClass) {
+        const idol = document.getElementById('idol-silhouette');
+        if(!idol) return;
+        idol.classList.add(animClass);
+        setTimeout(() => {
+            idol.classList.remove(animClass);
+        }, 300);
+    }
+
+    function createFloatingText(text, color, offsetX = 0, offsetY = 0, containerId = 'idol-area') {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        const el = document.createElement('div');
+        el.className = 'floating-text';
+        el.innerText = text;
+        el.style.color = color;
+        
+        el.style.left = `calc(50% - 20px + ${offsetX}px)`;
+        el.style.bottom = `calc(50% + ${offsetY}px)`;
+        
+        container.appendChild(el);
+        
+        setTimeout(() => {
+            el.remove();
+        }, 1000);
+    }
+
+    function createSparkles() {
+        const container = document.getElementById('idol-area');
+        if(!container) return;
+        for (let i = 0; i < 5; i++) {
+            const sparkle = document.createElement('div');
+            sparkle.className = 'sparkle';
+            
+            const size = Math.random() * 10 + 5;
+            sparkle.style.width = `${size}px`;
+            sparkle.style.height = `${size}px`;
+            
+            sparkle.style.left = `${Math.random() * 80 + 10}%`;
+            sparkle.style.bottom = `${Math.random() * 80 + 10}%`;
+            
+            sparkle.style.animationDelay = `${Math.random() * 0.3}s`;
+            
+            container.appendChild(sparkle);
+            
+            setTimeout(() => {
+                sparkle.remove();
+            }, 1000);
+        }
+    }
+
+    function getRandom(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+    }
+</script>
+</body>
+</html>
